@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Recipe, Ingredient } from '../types';
-import { translateTexts } from '../services/geminiService';
+import { translateTexts, estimateCookTime } from '../services/geminiService';
 import { TRANSLATION_LANGUAGES } from '../constants';
 
 interface RecipeDetailViewProps {
@@ -9,9 +9,10 @@ interface RecipeDetailViewProps {
   onAddToShoppingList: (items: string[]) => void;
   isFavorite: boolean;
   onToggleFavorite: (recipe: Recipe) => void;
+  onAskChatbot: (prompt: string) => void;
 }
 
-const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({ recipe, onBack, onAddToShoppingList, isFavorite, onToggleFavorite }) => {
+const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({ recipe, onBack, onAddToShoppingList, isFavorite, onToggleFavorite, onAskChatbot }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -21,12 +22,42 @@ const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({ recipe, onBack, onA
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedContent, setTranslatedContent] = useState<Record<string, { ingredients: Ingredient[]; instructions: string[] }>>({});
+  
+  // Cook time estimation state
+  const [estimatedCookTime, setEstimatedCookTime] = useState<number | null>(null);
+  const [isEstimatingCookTime, setIsEstimatingCookTime] = useState<boolean>(false);
+
+  // Ingredient availability state, tied to original ingredient names
+  const [ingredientAvailability, setIngredientAvailability] = useState(() =>
+    new Map(recipe.ingredients.map(i => [i.name, i.isAvailable]))
+  );
+
+  // Reset availability when the recipe prop changes
+  useEffect(() => {
+    setIngredientAvailability(new Map(recipe.ingredients.map(i => [i.name, i.isAvailable])));
+    setCurrentStep(0); // Also reset step counter
+  }, [recipe]);
+
+  const handleToggleAvailability = (originalIngredientName: string) => {
+    setIngredientAvailability(prev => {
+        const newMap = new Map(prev);
+        const currentValue = newMap.get(originalIngredientName);
+        newMap.set(originalIngredientName, !currentValue);
+        return newMap;
+    });
+  };
 
   const displayedIngredients = translatedContent[selectedLanguage]?.ingredients || recipe.ingredients;
   const displayedInstructions = translatedContent[selectedLanguage]?.instructions || recipe.instructions;
 
-  const missingIngredients = displayedIngredients.filter(ing => !ing.isAvailable);
-  const availableIngredients = displayedIngredients.filter(ing => ing.isAvailable);
+  const missingIngredientNames = recipe.ingredients
+    .filter(ing => !ingredientAvailability.get(ing.name))
+    .map(ing => ing.name);
+
+  const handleAddMissingIngredients = () => {
+    onAddToShoppingList(missingIngredientNames);
+    alert(`${missingIngredientNames.length} item(s) added to your shopping list!`);
+  };
 
   // Effect to handle translation
   useEffect(() => {
@@ -70,6 +101,27 @@ const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({ recipe, onBack, onA
 
     handleTranslation();
   }, [selectedLanguage, recipe, translatedContent]);
+
+  // Effect to estimate cook time if not provided
+  useEffect(() => {
+    const fetchCookTime = async () => {
+      if (recipe && !recipe.cookTime) {
+        setIsEstimatingCookTime(true);
+        setEstimatedCookTime(null);
+        try {
+          const time = await estimateCookTime(recipe.name, recipe.instructions);
+          setEstimatedCookTime(time);
+        } catch (error) {
+          console.error("Failed to estimate cook time:", error);
+          setEstimatedCookTime(null); // Ensure it's null on error
+        } finally {
+          setIsEstimatingCookTime(false);
+        }
+      }
+    };
+
+    fetchCookTime();
+  }, [recipe]);
 
 
   const handleNextStep = useCallback(() => {
@@ -153,13 +205,6 @@ const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({ recipe, onBack, onA
       }
     }
   };
-  
-  const handleAddMissingIngredients = () => {
-    // We add the original ingredient names to the shopping list, not the translated ones
-    const originalMissing = recipe.ingredients.filter(ing => !ing.isAvailable).map(ing => ing.name);
-    onAddToShoppingList(originalMissing);
-    alert(`${originalMissing.length} item(s) added to your shopping list!`);
-  }
 
   const LoadingOverlay: React.FC = () => (
     <div className="absolute inset-0 bg-dark-bg bg-opacity-75 flex items-center justify-center rounded-lg z-10">
@@ -209,36 +254,92 @@ const RecipeDetailView: React.FC<RecipeDetailViewProps> = ({ recipe, onBack, onA
         </button>
       </div>
       
-      <div className="flex flex-wrap gap-4 mb-8 text-medium-text">
+      <div className="flex flex-wrap items-center gap-4 mb-8 text-medium-text">
         <span className="bg-dark-surface px-3 py-1 rounded-full">{recipe.difficulty}</span>
-        <span className="bg-dark-surface px-3 py-1 rounded-full">{recipe.prepTime} min</span>
+        <span className="bg-dark-surface px-3 py-1 rounded-full">Prep: {recipe.prepTime} min</span>
+        
+        {recipe.cookTime && (
+          <span className="bg-dark-surface px-3 py-1 rounded-full">Cook: {recipe.cookTime} min</span>
+        )}
+        {isEstimatingCookTime && (
+          <span className="bg-dark-surface px-3 py-1 rounded-full flex items-center gap-2">
+            <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-brand-primary"></div>
+            <span>Estimating...</span>
+          </span>
+        )}
+        {!recipe.cookTime && !isEstimatingCookTime && estimatedCookTime && estimatedCookTime > 0 && (
+          <span className="bg-dark-surface px-3 py-1 rounded-full">Cook: ~{estimatedCookTime} min</span>
+        )}
+
         <span className="bg-dark-surface px-3 py-1 rounded-full">{recipe.calories} kcal</span>
+        <button
+          onClick={() => onAskChatbot(`Can you find social media posts or videos about how to make "${recipe.name}"?`)}
+          className="flex items-center gap-2 bg-dark-surface px-3 py-1 rounded-full text-brand-primary hover:bg-brand-primary hover:text-white transition-colors"
+          aria-label="Get social media links for this recipe"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+          </svg>
+          Get Social Links
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 relative">
+      <div className="mb-8 relative">
         {isTranslating && <LoadingOverlay />}
-        <div>
-          <h3 className="text-2xl font-semibold mb-3 text-light-text">Available Ingredients</h3>
-          <ul className="list-disc list-inside space-y-1 text-medium-text">
-            {availableIngredients.map(ing => <li key={ing.name}>{ing.name}</li>)}
-          </ul>
+        <div className="flex justify-between items-center mb-3">
+            <h3 className="text-2xl font-semibold text-light-text">Ingredients</h3>
+            {missingIngredientNames.length > 0 && (
+                <button 
+                    onClick={handleAddMissingIngredients} 
+                    className="bg-yellow-600 text-white font-bold py-1 px-3 rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+                    aria-label={`Add ${missingIngredientNames.length} missing items to shopping list`}
+                >
+                    Add {missingIngredientNames.length} to Shopping List
+                </button>
+            )}
         </div>
-        <div>
-          <h3 className="text-2xl font-semibold mb-3 text-red-400">Missing Ingredients</h3>
-          {missingIngredients.length > 0 ? (
-            <>
-              <ul className="list-disc list-inside space-y-1 text-medium-text">
-                {missingIngredients.map(ing => <li key={ing.name}>{ing.name}</li>)}
-              </ul>
-              <button onClick={handleAddMissingIngredients} className="mt-4 w-full bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors">
-                Add All to Shopping List
-              </button>
-            </>
-          ) : (
-            <p className="text-medium-text">You have all the ingredients!</p>
-          )}
+        <div className="bg-dark-bg p-4 rounded-lg">
+            <ul className="space-y-2">
+                {displayedIngredients.map((ingredient, index) => {
+                    const originalIngredient = recipe.ingredients[index];
+                    const isAvailable = ingredientAvailability.get(originalIngredient.name) ?? false;
+
+                    return (
+                        <li key={originalIngredient.name} className="flex items-center justify-between p-2 rounded-md transition-colors hover:bg-dark-surface">
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={isAvailable}
+                                    onChange={() => handleToggleAvailability(originalIngredient.name)}
+                                    className="hidden"
+                                />
+                                <div className={`w-5 h-5 border-2 rounded-md flex items-center justify-center transition-all duration-200 ${isAvailable ? 'bg-brand-primary border-brand-primary' : 'bg-dark-surface border-subtle-text group-hover:border-brand-primary'}`}>
+                                    {isAvailable && (
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </div>
+                                <span className={`transition-colors ${isAvailable ? 'text-medium-text' : 'line-through text-subtle-text'}`}>
+                                    {ingredient.name}
+                                </span>
+                            </label>
+
+                            {!isAvailable && (
+                                <button 
+                                onClick={() => onAskChatbot(`What's a good substitute for ${ingredient.name} in a "${recipe.name}" recipe?`)}
+                                className="text-xs bg-brand-primary text-white font-semibold py-1 px-2 rounded-full hover:bg-brand-secondary transition-colors whitespace-nowrap ml-2 flex-shrink-0"
+                                aria-label={`Find substitute for ${ingredient.name}`}
+                                >
+                                Find Substitute
+                                </button>
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
         </div>
-      </div>
+    </div>
 
       <div className="bg-dark-bg p-6 rounded-lg">
         <h3 className="text-3xl font-bold text-center mb-4 text-brand-primary">Cooking Mode</h3>

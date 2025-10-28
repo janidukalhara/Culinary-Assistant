@@ -1,13 +1,13 @@
-
 import React from 'react';
 
 interface FilterSidebarProps {
   options: string[];
   activeFilters: string[];
   onFilterChange: (filter: string) => void;
+  onClearFilters: () => void;
 }
 
-const FilterSidebar: React.FC<FilterSidebarProps> = ({ options, activeFilters, onFilterChange }) => {
+const FilterSidebar: React.FC<FilterSidebarProps> = ({ options, activeFilters, onFilterChange, onClearFilters }) => {
   return (
     <aside className="w-full md:w-64 lg:w-72 bg-dark-card p-6 rounded-xl shadow-lg md:sticky top-8 self-start">
       <h3 className="text-xl font-bold mb-4 text-light-text border-b border-dark-surface pb-2">Dietary Filters</h3>
@@ -31,6 +31,14 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ options, activeFilters, o
           </label>
         ))}
       </div>
+      {activeFilters.length > 0 && (
+        <button
+          onClick={onClearFilters}
+          className="w-full mt-6 text-sm font-semibold text-center text-subtle-text hover:text-brand-primary transition-colors duration-200"
+        >
+          Clear All Filters
+        </button>
+      )}
     </aside>
   );
 };

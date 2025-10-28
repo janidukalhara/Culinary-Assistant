@@ -54,7 +54,8 @@ const App: React.FC = () => {
         const chat = ai.chats.create({
           model: 'gemini-2.5-flash',
           config: {
-            systemInstruction: 'You are a helpful and friendly culinary assistant. You can answer questions about recipes, cooking techniques, ingredient substitutions, and nutrition. Keep your answers concise and easy to understand.',
+            systemInstruction: 'You are a helpful and friendly culinary assistant. You can answer questions about recipes, cooking techniques, ingredient substitutions, and nutrition. Use Google Search to find the most up-to-date and accurate information, especially for specific recipes, nutritional data, or current food trends. Keep your answers concise and easy to understand.',
+            tools: [{googleSearch: {}}],
           },
         });
         setChatSession(chat);
@@ -95,6 +96,10 @@ const App: React.FC = () => {
         ? prev.filter(f => f !== filter)
         : [...prev, filter]
     );
+  };
+  
+  const handleClearFilters = () => {
+    setActiveFilters([]);
   };
   
   const sourceRecipes = useMemo(() => {
@@ -178,9 +183,11 @@ const App: React.FC = () => {
         const result = await chatSession.sendMessageStream({ message });
         let firstChunk = true;
         let fullResponse = "";
+        let finalChunk: any = null; // Store the last chunk
 
         for await (const chunk of result) {
             fullResponse += chunk.text;
+            finalChunk = chunk; // Update on each iteration
             if (firstChunk) {
                 // On the first chunk, add a new message for the model
                 setChatMessages(prev => [...prev, { role: 'model', text: fullResponse }]);
@@ -194,6 +201,20 @@ const App: React.FC = () => {
                 });
             }
         }
+
+        // After the stream, update the last message with grounding info from the final chunk
+        const groundingChunks = finalChunk?.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (groundingChunks && groundingChunks.length > 0) {
+            setChatMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage.role === 'model') {
+                    lastMessage.groundingChunks = groundingChunks;
+                }
+                return newMessages;
+            });
+        }
+
     } catch (e) {
         console.error("Chat error:", e);
         const errorMessage: ChatMessage = { role: 'model', text: "Sorry, I'm having trouble connecting right now." };
@@ -202,6 +223,14 @@ const App: React.FC = () => {
         setIsBotLoading(false);
     }
 };
+
+  const askChatbot = (prompt: string) => {
+    setIsChatOpen(true);
+    // To avoid showing the prompt as a user message if it's a button click,
+    // we can just send it directly. Or, if we want to show it, we call handleSendMessage.
+    // Let's call handleSendMessage for clarity in the chat history.
+    handleSendMessage(prompt);
+  };
 
   const Header = () => (
     <header className="p-4 bg-dark-card shadow-md flex justify-between items-center">
@@ -233,6 +262,7 @@ const App: React.FC = () => {
               options={DIETARY_OPTIONS}
               activeFilters={activeFilters}
               onFilterChange={handleFilterChange}
+              onClearFilters={handleClearFilters}
             />
             <div className="flex-grow">
               <div className="flex border-b border-dark-surface mb-4">
@@ -310,6 +340,7 @@ const App: React.FC = () => {
             onAddToShoppingList={addToShoppingList}
             isFavorite={favoriteRecipes.some(fav => fav.name === selectedRecipe.name)}
             onToggleFavorite={handleToggleFavorite}
+            onAskChatbot={askChatbot}
           />
         )}
       </main>

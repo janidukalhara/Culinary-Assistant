@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Recipe } from '../types';
 
@@ -39,8 +40,8 @@ export const analyzeFridgeAndSuggestRecipes = async (image: File, dietaryFilters
 
     const prompt = `You are a smart fridge culinary assistant.
 Analyze the ingredients in the provided image of a refrigerator.
-Based on the identified ingredients, generate 5 diverse recipes. Use Google Search to find popular and accurate recipes.
-For each recipe, provide the following details: name, difficulty ('Easy', 'Medium', or 'Hard'), prepTime (in minutes), calories (per serving), dietaryTags (an array of strings), ingredients (an array of objects with 'name' and 'isAvailable' boolean), and instructions (an array of strings for each step).
+Based on the identified ingredients, generate 5 diverse recipes. You MUST leverage the provided Google Search tool to find popular, real-world, and accurate recipes.
+For each recipe, provide the following details: name, difficulty ('Easy', 'Medium', or 'Hard'), prepTime (in minutes), cookTime (in minutes, if available), calories (per serving), dietaryTags (an array of strings), ingredients (an array of objects with 'name' and 'isAvailable' boolean), and instructions (an array of strings for each step).
 ${dietaryFilterText}
 IMPORTANT: Your entire response MUST be a single, valid JSON array of recipe objects. Do not include any introductory text, markdown formatting (like \`\`\`json), or any other characters outside of the JSON array. The response should be directly parsable as JSON.`;
 
@@ -59,7 +60,7 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of recipe obj
     
     const text = response.text;
     if (!text) {
-      throw new Error("The AI returned an empty response. This could be due to a safety filter or an issue with the image. Please try a different photo.");
+      throw new Error("The AI provided an empty response. This can happen if the image is unclear or the safety filters were triggered. Please try a different photo.");
     }
     
     let jsonText = text.trim();
@@ -69,18 +70,38 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of recipe obj
         jsonText = jsonText.slice(3, -3).trim();
     }
     
+    // Check if the response seems to be a valid JSON array before parsing.
+    if (!jsonText.startsWith('[') || !jsonText.endsWith(']')) {
+      const preview = jsonText.length > 150 ? `${jsonText.substring(0, 150)}...` : jsonText;
+      console.warn("AI response was not a JSON array:", preview);
+      throw new Error("The AI couldn't generate recipes from the image. It might be unclear or contain no recognizable food items. Please try a clearer photo.");
+    }
+
     const recipes = JSON.parse(jsonText) as Recipe[];
     return recipes;
 
   } catch (error) {
-    console.error("Error analyzing image with Gemini:", error);
+    console.error("Error in analyzeFridgeAndSuggestRecipes:", error);
+    
     if (error instanceof SyntaxError) {
-        throw new Error("The AI returned an invalid recipe format. Please try again.");
+        // This specifically catches JSON.parse errors
+        throw new Error("The AI's recipe list was not in the expected format. This can be a temporary issue. Please try uploading the image again.");
     }
+
     if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        if (message.includes('safety')) {
+            throw new Error("The image was blocked due to safety settings. Please try a different photo.");
+        }
+        if (message.includes('fetch') || message.includes('network')) {
+            throw new Error("Could not connect to the recipe service. Please check your internet connection and try again.");
+        }
+        // Re-throw other specific, user-friendly messages from the try block
         throw error;
     }
-    throw new Error("Failed to get recipes from the AI. Please try another image.");
+
+    // A final catch-all for any other unexpected errors
+    throw new Error("An unexpected error occurred while getting recipes. Please try again later.");
   }
 };
 
@@ -122,5 +143,37 @@ ${JSON.stringify(texts)}`;
     console.error("Error translating text with Gemini:", error);
     // In case of error, return original texts to prevent UI crash
     return texts;
+  }
+};
+
+export const estimateCookTime = async (recipeName: string, instructions: string[]): Promise<number | null> => {
+  try {
+    const prompt = `Based on the following instructions for a recipe called "${recipeName}", estimate the total active cook time in minutes.
+Cook time includes time spent sautéing, boiling, baking, frying, etc. It does NOT include passive time like marinating, resting, or cooling.
+Your response MUST be a single integer representing the number of minutes. Do not include any other text, units, or explanations.
+
+Instructions:
+${instructions.join('\n')}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [{ text: prompt }]
+      }
+    });
+
+    const text = response.text.trim();
+    const time = parseInt(text, 10);
+
+    if (isNaN(time)) {
+      console.warn("AI did not return a valid number for cook time. Response:", text);
+      return null;
+    }
+    
+    return time;
+
+  } catch (error) {
+    console.error("Error estimating cook time with Gemini:", error);
+    return null; // Return null on error to prevent UI crash
   }
 };

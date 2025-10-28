@@ -110,6 +110,28 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, messages, onSendMess
             <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-xs md:max-w-sm p-3 rounded-lg ${msg.role === 'user' ? 'bg-brand-primary text-white' : 'bg-dark-surface text-light-text'}`}>
                 <p style={{ whiteSpace: 'pre-wrap' }}>{msg.translations?.[selectedLanguage] || msg.text}</p>
+                {msg.groundingChunks && msg.groundingChunks.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-dark-surface">
+                    <h4 className="text-xs font-bold text-subtle-text mb-2">Sources</h4>
+                    <ul className="space-y-1">
+                      {msg.groundingChunks.map((chunk, i) => (
+                        chunk.web && (
+                          <li key={i}>
+                            <a 
+                              href={chunk.web.uri} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-xs text-brand-primary hover:underline block truncate"
+                              title={chunk.web.title || chunk.web.uri}
+                            >
+                              {i + 1}. {chunk.web.title || chunk.web.uri}
+                            </a>
+                          </li>
+                        )
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           ))}

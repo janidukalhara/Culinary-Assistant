@@ -1,0 +1,7 @@
+{
+  "name": "Culinary Assistant",
+  "description": "An AI-powered cooking assistant. Snap a photo of your fridge, and the app identifies ingredients, suggests recipes with filters, provides step-by-step cooking instructions with read-aloud functionality, and helps you build a shopping list for missing items.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

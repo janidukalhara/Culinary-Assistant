@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, DragEvent } from 'react';
 
 interface ImageUploaderProps {
   onImageUpload: (file: File) => void;
@@ -9,11 +9,11 @@ interface ImageUploaderProps {
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isLoading, error }) => {
   const [preview, setPreview] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
+  const processFile = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -23,9 +23,44 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isLoading,
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
+  
+  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation(); // This is necessary to allow dropping
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
 
   const LoadingSpinner = () => (
     <div className="flex flex-col items-center justify-center space-y-4">
@@ -54,7 +89,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isLoading,
 
           <div
             onClick={handleUploadClick}
-            className="w-full h-64 border-4 border-dashed border-dark-surface rounded-lg flex items-center justify-center cursor-pointer hover:border-brand-primary transition-colors duration-300 bg-dark-bg"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            className={`w-full h-64 border-4 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors duration-300 bg-dark-bg ${isDraggingOver ? 'border-brand-primary' : 'border-dark-surface hover:border-brand-primary'}`}
           >
             {preview ? (
               <img src={preview} alt="Fridge preview" className="w-full h-full object-cover rounded-md" />
@@ -63,7 +102,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isLoading,
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Click to upload a photo
+                {isDraggingOver ? (
+                  <p className="font-semibold text-lg text-light-text">Drop the image here!</p>
+                ) : (
+                  <p>Click or drag & drop a photo</p>
+                )}
               </div>
             )}
           </div>

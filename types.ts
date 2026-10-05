@@ -30,3 +30,19 @@ export interface ChatMessage {
 
 export type View = 'upload' | 'recipes' | 'cooking';
 export type Tab = 'recipes' | 'shoppingList' | 'favorites';
+
+export interface YoloDetection {
+  className: string;
+  confidence: number;
+  box: [number, number, number, number];
+}
+
+export interface DetectionResult {
+  model: string;
+  mode: 'world' | 'standard' | 'custom' | string;
+  confidenceThreshold: number;
+  inferenceMs: number;
+  detections: YoloDetection[];
+  ingredients: string[];
+  annotatedImage: string;
+}

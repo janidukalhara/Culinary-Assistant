@@ -106,6 +106,68 @@ IMPORTANT: Your entire response MUST be a single, valid JSON array of recipe obj
 };
 
 
+export const generateRecipesFromIngredients = async (
+  detectedIngredients: string[],
+  dietaryFilters: string[]
+): Promise<Recipe[]> => {
+  if (!detectedIngredients.length) {
+    throw new Error(
+      "YOLO did not detect any supported ingredients. Try a clearer fridge photo or use custom trained weights."
+    );
+  }
+
+  const dietaryFilterText = dietaryFilters.length > 0
+    ? `Prioritize recipes that fit these dietary restrictions: ${dietaryFilters.join(', ')}.`
+    : '';
+
+  const prompt = `You are a smart culinary assistant.
+A YOLO object-detection model inspected a refrigerator image and detected these ingredients:
+${detectedIngredients.join(', ')}
+
+Generate 5 diverse and practical recipes that use as many of the detected ingredients as possible.
+You may include common pantry staples when needed, but mark only the YOLO-detected ingredients as isAvailable=true.
+${dietaryFilterText}
+
+For each recipe return:
+- name
+- difficulty ('Easy', 'Medium', or 'Hard')
+- prepTime (minutes)
+- cookTime (minutes, if applicable)
+- calories (per serving)
+- dietaryTags (array of strings)
+- ingredients (array of objects with name and isAvailable)
+- instructions (array of step strings)
+
+IMPORTANT: Return only a single valid JSON array. Do not include markdown or explanatory text.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] },
+    });
+
+    let jsonText = response.text?.trim() || '';
+    if (jsonText.startsWith('\\`\\`\\`json')) {
+      jsonText = jsonText.slice(7, -3).trim();
+    } else if (jsonText.startsWith('\\`\\`\\`')) {
+      jsonText = jsonText.slice(3, -3).trim();
+    }
+
+    if (!jsonText.startsWith('[') || !jsonText.endsWith(']')) {
+      throw new Error('Gemini did not return a valid recipe JSON array.');
+    }
+
+    return JSON.parse(jsonText) as Recipe[];
+  } catch (error) {
+    console.error("Error generating recipes from YOLO ingredients:", error);
+    if (error instanceof SyntaxError) {
+      throw new Error("The AI recipe response was not valid JSON. Please try again.");
+    }
+    throw error;
+  }
+};
+
+
 export const translateTexts = async (texts: string[], targetLanguageName: string): Promise<string[]> => {
   if (!texts || texts.length === 0) {
     return [];

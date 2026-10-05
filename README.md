@@ -24,7 +24,7 @@ Gemini recipe generation
 Recipes / dietary filters / favorites / shopping list / cooking assistant
 ```
 
-The UI now displays the YOLO annotated image, detected object labels, confidence scores, model name, detection mode, and inference time before showing recipe suggestions.
+The results view displays the YOLO annotated image, detected object labels, confidence scores, model name, detection mode, and inference time alongside recipe suggestions.
 
 ## Tech stack
 
@@ -34,6 +34,34 @@ The UI now displays the YOLO annotated image, detected object labels, confidence
 - **Generative AI:** Gemini API
 - **Training:** Ultralytics YOLO custom-dataset training pipeline
 - **Testing / demo:** FastAPI Swagger UI, health endpoint, Python smoke-test script
+
+## Frontend design
+
+The kitchen interface uses a cream and forest-green palette, a locally rendered SVG fridge illustration, floating accents, staged scan feedback, and animated recipe cards. It adapts to desktop, tablet, and mobile and honours `prefers-reduced-motion`.
+
+- Preview, replace, or remove a JPG/PNG/WebP photo before starting a scan (10 MB frontend limit).
+- Open saved recipes and the shopping list directly from the navigation.
+- Inspect real YOLO bounding boxes, ingredients, inference time, and expandable confidence details.
+- Keep detection results if recipe generation fails, then retry recipes without repeating detection.
+- Use keyboard-accessible upload controls, recipe actions, dietary checkboxes, and collection tabs.
+- Styles and the illustration are bundled locally; there is no Tailwind CDN or external image dependency.
+
+To update an existing laptop checkout, run these commands from the project folder (commit or stash your own changes first if Git reports a conflict):
+
+```powershell
+git pull --ff-only origin main
+npm ci
+npm run dev
+```
+
+Keep the FastAPI backend running in its separate terminal. Existing `.env.local` and `backend/.env` settings still apply. Without a Gemini key, the frontend can open and show YOLO results, but recipe generation needs the key.
+
+Frontend validation:
+
+```powershell
+npm run typecheck
+npm run build
+```
 
 ## YOLO modes
 
@@ -162,7 +190,7 @@ Open:
 
 ## 5. Demo workflow
 
-1. Upload a refrigerator image.
+1. Choose or drop a refrigerator image, preview it, then select **Find my recipes**.
 2. React sends the image as `multipart/form-data` to `POST /api/detect`.
 3. FastAPI decodes the image with OpenCV.
 4. YOLO performs object detection.
@@ -173,9 +201,9 @@ Open:
    - unique ingredient names
    - annotated image
    - inference time
-6. The frontend displays the detection result.
+6. The frontend retains the detection result and advances to recipe generation.
 7. The detected ingredient names are sent to Gemini.
-8. Gemini returns five structured recipe suggestions.
+8. The results view displays the detections and recipe suggestions (or a retry message if recipe generation fails).
 9. Existing features such as dietary filtering, favorites, shopping list, translation, cook-time help, and chatbot remain available.
 
 ## REST API example

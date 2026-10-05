@@ -9,7 +9,7 @@ interface ShoppingListProps {
 const ShoppingList: React.FC<ShoppingListProps> = ({ items, onRemove }) => {
   if (items.length === 0) {
     return (
-      <div className="bg-dark-card p-8 rounded-xl shadow-lg text-center">
+      <div className="empty-state">
         <h3 className="text-2xl font-bold text-light-text mb-2">Your Shopping List is Empty</h3>
         <p className="text-medium-text">Missing ingredients from recipes will appear here.</p>
       </div>
@@ -17,7 +17,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ items, onRemove }) => {
   }
 
   return (
-    <div className="bg-dark-card p-6 md:p-8 rounded-xl shadow-lg">
+    <div className="shopping-panel">
       <h3 className="text-2xl font-bold text-light-text mb-6 border-b border-dark-surface pb-3">Shopping List</h3>
       <ul className="space-y-3">
         {items.map((item, index) => (
@@ -25,7 +25,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ items, onRemove }) => {
             <span className="text-lg text-medium-text">{item}</span>
             <button 
               onClick={() => onRemove(item)}
-              className="text-subtle-text hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="text-subtle-text hover:text-red-500 opacity-100 transition-opacity"
               aria-label={`Remove ${item}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

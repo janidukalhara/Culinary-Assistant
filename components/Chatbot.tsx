@@ -85,7 +85,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, messages, onSendMess
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-[calc(100%-2rem)] max-w-md h-[70vh] max-h-[600px] z-50 flex flex-col shadow-2xl rounded-xl">
+    <div className="chat-panel" role="region" aria-label="Cooking assistant chat">
       <div className="bg-dark-card rounded-t-xl p-4 flex justify-between items-center gap-4">
         <h3 className="text-xl font-bold text-brand-primary flex-shrink-0">Culinary Chatbot</h3>
         <select
@@ -98,7 +98,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, messages, onSendMess
             <option key={lang.code} value={lang.code}>{lang.name}</option>
           ))}
         </select>
-        <button onClick={onClose} className="text-subtle-text hover:text-light-text">
+        <button aria-label="Close chat" onClick={onClose} className="text-subtle-text hover:text-light-text">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -156,13 +156,14 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, messages, onSendMess
         <div className="flex items-center space-x-2">
           <input
             type="text"
+            aria-label="Your cooking question"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a cooking question..."
             className="w-full bg-dark-surface text-light-text px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary"
             disabled={isLoading}
           />
-          <button type="submit" disabled={isLoading || !input.trim()} className="bg-brand-primary text-white p-2 rounded-full hover:bg-brand-secondary disabled:bg-dark-surface disabled:cursor-not-allowed transition-colors">
+          <button aria-label="Send message" type="submit" disabled={isLoading || !input.trim()} className="bg-brand-primary text-white p-2 rounded-full hover:bg-brand-secondary disabled:bg-dark-surface disabled:cursor-not-allowed transition-colors">
              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
           </button>
         </div>

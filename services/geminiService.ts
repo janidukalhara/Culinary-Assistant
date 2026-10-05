@@ -4,11 +4,11 @@ import { Recipe } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Initialise on demand so the kitchen UI and YOLO results remain usable without a key.
+const getAI = () => {
+  if (!API_KEY) throw new Error('Recipe generation needs a Gemini API key. Add GEMINI_API_KEY to .env.local, then restart the frontend.');
+  return new GoogleGenAI({ apiKey: API_KEY });
+};
 
 const fileToGenerativePart = (file: File) => {
   return new Promise<{ inlineData: { data: string; mimeType: string; } }>((resolve, reject) => {
@@ -45,7 +45,7 @@ For each recipe, provide the following details: name, difficulty ('Easy', 'Mediu
 ${dietaryFilterText}
 IMPORTANT: Your entire response MUST be a single, valid JSON array of recipe objects. Do not include any introductory text, markdown formatting (like \`\`\`json), or any other characters outside of the JSON array. The response should be directly parsable as JSON.`;
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [
@@ -141,7 +141,7 @@ For each recipe return:
 IMPORTANT: Return only a single valid JSON array. Do not include markdown or explanatory text.`;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [{ text: prompt }] },
     });
@@ -179,7 +179,7 @@ Your response MUST be a single, valid JSON array of strings, with the same numbe
 Input:
 ${JSON.stringify(texts)}`;
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [{ text: prompt }]
@@ -217,7 +217,7 @@ Your response MUST be a single integer representing the number of minutes. Do no
 Instructions:
 ${instructions.join('\n')}`;
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [{ text: prompt }]

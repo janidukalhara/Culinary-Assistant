@@ -65,8 +65,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isLoading,
   const LoadingSpinner = () => (
     <div className="flex flex-col items-center justify-center space-y-4">
       <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-brand-primary"></div>
-      <p className="text-xl text-medium-text font-semibold">Analyzing your fridge...</p>
-      <p className="text-subtle-text">The culinary AI is whipping up some ideas!</p>
+      <p className="text-xl text-medium-text font-semibold">Running YOLO object detection...</p>
+      <p className="text-subtle-text">Detecting ingredients, then generating recipes with AI.</p>
     </div>
   );
 
@@ -77,7 +77,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isLoading,
       ) : (
         <>
           <h2 className="text-3xl font-bold mb-2 text-light-text">Ready to Cook?</h2>
-          <p className="text-lg text-medium-text mb-6">Snap a photo of your fridge, and let's find your next meal.</p>
+          <p className="text-lg text-medium-text mb-6">Upload a fridge photo. YOLO detects ingredients with bounding boxes, then AI recommends recipes.</p>
           
           <input
             type="file"

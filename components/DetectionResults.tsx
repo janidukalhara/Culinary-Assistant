@@ -1,75 +1,79 @@
-import React from 'react';
-import { DetectionResult } from '../types';
-
-interface DetectionResultsProps {
+import React from "react";
+import { DetectionResult } from "../types";
+import Icon from "./Icon";
+export default function DetectionResults({
+  result,
+}: {
   result: DetectionResult;
-}
-
-const DetectionResults: React.FC<DetectionResultsProps> = ({ result }) => {
+}) {
   return (
-    <section className="bg-dark-card rounded-xl shadow-lg p-5 md:p-6">
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="lg:w-1/2">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <h2 className="text-xl font-bold text-light-text">YOLO Detection Result</h2>
-              <p className="text-sm text-subtle-text">
-                {result.model} · {result.mode} mode · {result.inferenceMs.toFixed(0)} ms
-              </p>
-            </div>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary/20 text-brand-primary">
-              {result.detections.length} objects
-            </span>
+    <section className="detection-panel">
+      <div className="detection-image">
+        {result.annotatedImage ? (
+          <img
+            src={result.annotatedImage}
+            alt="Your ingredients identified by YOLO, with bounding boxes"
+          />
+        ) : (
+          <div className="empty-state">
+            <Icon name="scan" />
+            <p>Annotated image unavailable.</p>
           </div>
-
-          {result.annotatedImage ? (
-            <img
-              src={result.annotatedImage}
-              alt="YOLO ingredient detections with bounding boxes"
-              className="w-full rounded-lg border border-dark-surface object-contain max-h-[420px] bg-dark-bg"
-            />
+        )}
+        <span className="detection-badge">
+          <Icon name="check" /> Scan complete · {result.detections.length}{" "}
+          objects
+        </span>
+      </div>
+      <div className="detection-copy">
+        <span className="eyebrow">LOOK WHAT WE FOUND</span>
+        <h2>A fridge full of potential.</h2>
+        <p>
+          Here’s your starting point. Check that these ingredients match what
+          you have.
+        </p>
+        <div className="ingredient-chips">
+          {result.ingredients.length ? (
+            result.ingredients.map((ingredient) => (
+              <span key={ingredient}>
+                <Icon name="check" />
+                {ingredient}
+              </span>
+            ))
           ) : (
-            <div className="rounded-lg border border-dark-surface p-6 text-subtle-text text-center">
-              Annotated image is not available.
-            </div>
+            <p>
+              No supported ingredients found. Try a clearer photo with items
+              more visible.
+            </p>
           )}
         </div>
-
-        <div className="lg:w-1/2">
-          <h3 className="text-lg font-semibold text-light-text mb-3">Detected Ingredients</h3>
-          <div className="flex flex-wrap gap-2 mb-5">
-            {result.ingredients.length > 0 ? (
-              result.ingredients.map((ingredient) => (
-                <span
-                  key={ingredient}
-                  className="px-3 py-1.5 rounded-full bg-brand-primary/15 border border-brand-primary/30 text-brand-primary text-sm font-medium"
-                >
-                  {ingredient}
-                </span>
-              ))
-            ) : (
-              <p className="text-subtle-text">No supported food ingredients were detected.</p>
-            )}
-          </div>
-
-          <h3 className="text-lg font-semibold text-light-text mb-3">Object Confidence</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {result.detections.map((detection, index) => (
-              <div
-                key={`${detection.className}-${index}`}
-                className="flex items-center justify-between gap-4 bg-dark-bg rounded-lg px-3 py-2"
-              >
-                <span className="text-medium-text capitalize">{detection.className}</span>
-                <span className="text-sm font-semibold text-light-text">
-                  {(detection.confidence * 100).toFixed(1)}%
-                </span>
+        <details className="detection-details">
+          <summary>
+            View detection details{" "}
+            <span>{result.inferenceMs.toFixed(0)} ms</span>
+          </summary>
+          <p>
+            {result.model} · {result.mode} mode
+          </p>
+          <div className="confidence-list">
+            {result.detections.map((item, index) => (
+              <div key={`${item.className}-${index}`}>
+                <div>
+                  <span>{item.className}</span>
+                  <strong>{(item.confidence * 100).toFixed(1)}%</strong>
+                </div>
+                <div className="confidence-track">
+                  <span
+                    style={{
+                      width: `${Math.min(100, Math.max(0, item.confidence * 100))}%`,
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </details>
       </div>
     </section>
   );
-};
-
-export default DetectionResults;
+}

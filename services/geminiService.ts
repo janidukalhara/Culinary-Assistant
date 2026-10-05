@@ -147,9 +147,9 @@ IMPORTANT: Return only a single valid JSON array. Do not include markdown or exp
     });
 
     let jsonText = response.text?.trim() || '';
-    if (jsonText.startsWith('\\`\\`\\`json')) {
+    if (jsonText.startsWith('```json')) {
       jsonText = jsonText.slice(7, -3).trim();
-    } else if (jsonText.startsWith('\\`\\`\\`')) {
+    } else if (jsonText.startsWith('```')) {
       jsonText = jsonText.slice(3, -3).trim();
     }
 

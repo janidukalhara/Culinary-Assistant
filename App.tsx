@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
-import { analyzeFridgeAndSuggestRecipes } from './services/geminiService';
-import { Recipe, View, Tab, ChatMessage } from './types';
+import { generateRecipesFromIngredients } from './services/geminiService';
+import { detectFridgeIngredients } from './services/yoloService';
+import { Recipe, View, Tab, ChatMessage, DetectionResult } from './types';
 import ImageUploader from './components/ImageUploader';
 import RecipeDetailView from './components/RecipeDetailView';
 import FilterSidebar from './components/FilterSidebar';
 import RecipeCard from './components/RecipeCard';
 import ShoppingList from './components/ShoppingList';
 import Chatbot from './components/Chatbot';
+import DetectionResults from './components/DetectionResults';
 import { DIETARY_OPTIONS } from './constants';
 
 const App: React.FC = () => {
@@ -15,6 +17,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('recipes');
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [shoppingList, setShoppingList] = useState<string[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -77,8 +80,15 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setRecipes([]);
+    setDetectionResult(null);
     try {
-      const suggestedRecipes = await analyzeFridgeAndSuggestRecipes(file, activeFilters);
+      const yoloResult = await detectFridgeIngredients(file);
+      setDetectionResult(yoloResult);
+
+      const suggestedRecipes = await generateRecipesFromIngredients(
+        yoloResult.ingredients,
+        activeFilters
+      );
       setRecipes(suggestedRecipes);
       setView('recipes');
       setActiveTab('recipes');
@@ -167,6 +177,7 @@ const App: React.FC = () => {
     setView('upload');
     setUploadedImage(null);
     setRecipes([]);
+    setDetectionResult(null);
     setSelectedRecipe(null);
     setError(null);
     setSearchQuery('');
@@ -235,7 +246,7 @@ const App: React.FC = () => {
   const Header = () => (
     <header className="p-4 bg-dark-card shadow-md flex justify-between items-center">
       <h1 className="text-2xl font-bold text-brand-primary cursor-pointer" onClick={resetApp}>
-        Culinary Assistant
+        Culinary Assistant · YOLO Fridge Vision
       </h1>
       {view !== 'upload' && (
          <button
@@ -257,7 +268,13 @@ const App: React.FC = () => {
         )}
 
         {view === 'recipes' && (
-          <div className="flex flex-col md:flex-row gap-8">
+          <>
+            {detectionResult && (
+              <div className="mb-8">
+                <DetectionResults result={detectionResult} />
+              </div>
+            )}
+            <div className="flex flex-col md:flex-row gap-8">
             <FilterSidebar
               options={DIETARY_OPTIONS}
               activeFilters={activeFilters}
@@ -330,7 +347,8 @@ const App: React.FC = () => {
                 <ShoppingList items={shoppingList} onRemove={removeFromShoppingList} />
               )}
             </div>
-          </div>
+            </div>
+          </>
         )}
 
         {view === 'cooking' && selectedRecipe && (

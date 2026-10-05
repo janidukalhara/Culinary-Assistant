@@ -1,0 +1,25 @@
+# Copy this file to dataset.yaml after preparing a YOLO-format dataset.
+# Recommended structure:
+# backend/datasets/fridge/
+#   images/train
+#   images/val
+#   labels/train
+#   labels/val
+
+path: ../datasets/fridge
+train: images/train
+val: images/val
+
+names:
+  0: egg
+  1: milk
+  2: cheese
+  3: tomato
+  4: potato
+  5: onion
+  6: apple
+  7: banana
+  8: carrot
+  9: broccoli
+  10: bell_pepper
+  11: chicken
